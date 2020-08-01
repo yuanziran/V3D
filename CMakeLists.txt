@@ -14,7 +14,6 @@ if(Qt5_FOUND)
 	message(STATUS "qt5 found")
 endif()
 include_directories(include)
-add_subdirectory(Tool)
 add_subdirectory(V2D)
 add_subdirectory(V3D)
-add_subdirectory(DataTest)
+
