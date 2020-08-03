@@ -17,6 +17,8 @@
 #include "vtkDICOMImageReader.h"
 #include "vtkPolyDataMapper.h"
 #include "vtkProperty.h"
+#include "vtkScalarBarActor.h"
+#include "vtkScalarBarWidget.h"
 #include "vtkRenderWindow.h"
 #include "vtkRenderWindowInteractor.h"
 #include "vtkRenderer.h"
@@ -37,6 +39,7 @@
 #include"vtkTextActor.h"
 #include"vtkProperty2D.h"
 #include"vtkImageReader.h"
+#include"colormap.hpp"
 #include<getopt.h>
 #include<string>
 #include<cstring>
@@ -54,11 +57,25 @@ int main(int argc, char**argv)
 		"-x,--xdim:raw data xdim.\n"
 		"-y,--ydim:raw data ydim.\n"
 		"-z,--zdim:raw data zdim.\n"
+		"-c,--colormap: 0=Gray\n"
+		"				1=Jet\n"
+		"				2=Cool\n"
+		"				3=Hot\n"
+		"				4=Parula\n"
+		"				5=Hsv\n"
+		"				6=Spring\n"
+		"				7=Summer\n"
+		"				8=Autumn\n"
+		"				9=Winter\n"
+		"				10=Bone\n"
+		"				11=Copper\n"
+		"				12=Pink\n"
 		"-h,--help:help user!";
-	const char* short_opt = "-n:x:y:z:h";
+	const char* short_opt = "-n:x:y:z:c::h";
 	const option long_opt[] = {
 		{"name",1,NULL,'n'},{"xdim",1,NULL,'x'},
 		{"ydim",1,NULL,'y'},{"zdim",1,NULL,'z'},
+		{"colormap",2,NULL,'c'},
 		{"help",0,NULL,'h'},{0,0,0,0}
 	};
 	optind = 1;
@@ -66,6 +83,7 @@ int main(int argc, char**argv)
 	int xdim = 0;
 	int ydim = 0;
 	int zdim = 0;
+	int colormap=0;
 	std::string fileName;
 	while ((result = getopt_long(argc, argv, short_opt, long_opt, &optind)) != -1)
 	{
@@ -83,6 +101,9 @@ int main(int argc, char**argv)
 		case 'n':
 			fileName = optarg;
 			break;
+		case 'c':
+			sscanf(optarg,"%d",&colormap);
+			break;
 		default:
 			std::cerr << help << std::endl;
 			exit(EXIT_FAILURE);
@@ -95,57 +116,49 @@ int main(int argc, char**argv)
 		<< "file name : " << fileName << std::endl;
 	//read raw data
 	VTK_USE(vtkImageReader, reader)
-		reader->SetFileName(fileName.c_str());
+	reader->SetFileName(fileName.c_str());
 	reader->SetFileDimensionality(3);
 	reader->SetNumberOfScalarComponents(1);
 	reader->SetHeaderSize(0);
 	reader->SetDataScalarType(VTK_FLOAT);
-	reader->SetDataExtent(0, xdim - 1, 0, ydim - 1, 0, zdim - 1);//´Ë´¦Òª·â±ÕÇø¼ä
+	reader->SetDataExtent(0, xdim - 1, 0, ydim - 1, 0, zdim - 1);//ï¿½Ë´ï¿½Òªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	reader->SetDataSpacing(1, 1, 1);
 	reader->Update();
-	//ÇóÈ¡×î´ó×îÐ¡
+	//ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½ï¿½Ð¡
 	vtkDataArray* array = reader->GetOutput()->GetPointData()->GetScalars();
 	double range[2];
 	array->GetRange(range);
 	std::cout << "data ranage [0] " << range[0] << std::endl
 		<< "data ranage [1] " << range[1] << std::endl;
-	//Êý¾Ý×ª»»
+	//ï¿½ï¿½ï¿½ï¿½×ªï¿½ï¿½
+#if 0
 	VTK_USE(vtkImageShiftScale, shift)
 	shift->SetOutputScalarTypeToUnsignedChar();
 	shift->SetInputData(reader->GetOutput());
 	shift->SetScale(255 / (range[1] - range[0]));
 	shift->SetShift(-range[0]);
 	shift->Update();
-	
+#endif
 
 	VTK_USE(vtkLookupTable, colorTable)
-	colorTable->SetHueRange(0.667, 0.0);
-	colorTable->SetNumberOfColors(400);
-	/*
-	colorTable->SetTableValue(0,1.0,0.0,0.0);
-	colorTable->SetTableValue(1,0.0,1.0,0.0);
-	colorTable->SetTableValue(9,0.0,0.0,1.0);
-	*/
-	colorTable->SetRange(range[0], range[1]);
-	colorTable->Build();
+	V3D::vtkSetColorTable(colorTable,colormap);
+	colorTable->SetRange(range[0],range[1]);
+	VTK_USE(vtkScalarBarActor, scalarBar)
+	scalarBar->SetOrientationToHorizontal();
+	scalarBar->SetLookupTable(colorTable);
 
+#if 0
 	VTK_USE(vtkImageMapToColors, colorMap)
 	colorMap->SetInputConnection(shift->GetOutputPort());
 	colorMap->SetLookupTable(colorTable);
 	colorMap->Update();
-#if 0
-	VTK_USE(vtkOutlineFilter, outline)
-	outline->SetInputConnection(shift->GetOutputPort());
-
-	VTK_USE(vtkPolyDataMapper,outlineMap)
 #endif
-	//¹À¼ÆÃ»ÓÐÓÃ
-	VTK_USE(vtkImageActor, actor)
-	actor->SetInputData(colorMap->GetOutput());
+	//ï¿½ï¿½ï¿½ï¿½Ã»ï¿½ï¿½ï¿½ï¿½
+	
 
 	VTK_USE(vtkRenderer, renderer)
 	//renderer->AddActor(actor);
-	renderer->SetBackground(1,1,1);
+	renderer->SetBackground(0,0,0);
 	renderer->ResetCamera();
 
 	VTK_USE(vtkRenderWindow, window)
@@ -159,11 +172,11 @@ int main(int argc, char**argv)
 	VTK_USE(vtkImagePlaneWidget, planeWidgetY)
 	VTK_USE(vtkImagePlaneWidget, planeWidgetZ)
 	planeWidgetX->SetInteractor(interactor);
-	planeWidgetX->GetPlaneProperty()->SetColor(1,0,0);//ÉèÖÃ±³¾°ÑÕÉ«
-	planeWidgetX->SetTexturePlaneProperty(prop);//<<ÉèÖÃÎÆÀíÊôÐÔ
+	planeWidgetX->GetPlaneProperty()->SetColor(1,0,0);//ï¿½ï¿½ï¿½Ã±ï¿½ï¿½ï¿½ï¿½ï¿½É«
+	planeWidgetX->SetTexturePlaneProperty(prop);//<<ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	planeWidgetX->TextureInterpolateOff();
 	planeWidgetX->SetResliceInterpolateToLinear();
-	planeWidgetX->SetInputConnection(shift->GetOutputPort());
+	planeWidgetX->SetInputConnection(reader->GetOutputPort());
 	planeWidgetX->SetPlaneOrientation(0);
 	planeWidgetX->SetSliceIndex(xdim/2);
 	planeWidgetX->DisplayTextOn();
@@ -173,11 +186,11 @@ int main(int argc, char**argv)
 	planeWidgetX->InteractionOn();
 
 	planeWidgetY->SetInteractor(interactor);
-	planeWidgetY->GetPlaneProperty()->SetColor(0, 1, 0);//ÉèÖÃ±³¾°ÑÕÉ«
-	planeWidgetY->SetTexturePlaneProperty(prop);//<<ÉèÖÃÎÆÀíÊôÐÔ
+	planeWidgetY->GetPlaneProperty()->SetColor(0, 1, 0);//ï¿½ï¿½ï¿½Ã±ï¿½ï¿½ï¿½ï¿½ï¿½É«
+	planeWidgetY->SetTexturePlaneProperty(prop);//<<ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	planeWidgetY->TextureInterpolateOff();
 	planeWidgetY->SetResliceInterpolateToLinear();
-	planeWidgetY->SetInputConnection(shift->GetOutputPort());
+	planeWidgetY->SetInputConnection(reader->GetOutputPort());
 	planeWidgetY->SetPlaneOrientation(1);
 	planeWidgetY->SetSliceIndex(ydim / 2);
 	planeWidgetY->DisplayTextOn();
@@ -187,11 +200,11 @@ int main(int argc, char**argv)
 	planeWidgetY->InteractionOn();
 
 	planeWidgetZ->SetInteractor(interactor);
-	planeWidgetZ->GetPlaneProperty()->SetColor(0, 0, 1);//ÉèÖÃ±³¾°ÑÕÉ«
-	planeWidgetZ->SetTexturePlaneProperty(prop);//<<ÉèÖÃÎÆÀíÊôÐÔ
+	planeWidgetZ->GetPlaneProperty()->SetColor(0, 0, 1);//ï¿½ï¿½ï¿½Ã±ï¿½ï¿½ï¿½ï¿½ï¿½É«
+	planeWidgetZ->SetTexturePlaneProperty(prop);//<<ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	planeWidgetZ->TextureInterpolateOff();
 	planeWidgetZ->SetResliceInterpolateToLinear();
-	planeWidgetZ->SetInputConnection(shift->GetOutputPort());
+	planeWidgetZ->SetInputConnection(reader->GetOutputPort());
 	planeWidgetZ->SetPlaneOrientation(2);
 	planeWidgetZ->SetSliceIndex(zdim / 2);
 	planeWidgetZ->DisplayTextOn();
@@ -206,6 +219,10 @@ int main(int argc, char**argv)
 
 	VTK_USE(vtkInteractorStyleImage, style)
 	VTK_USE(vtkInteractorStyleTrackballCamera,cameraStyle)
+	VTK_USE(vtkScalarBarWidget, barWidget)
+	barWidget->SetInteractor(interactor);
+	barWidget->SetScalarBarActor(scalarBar);
+	barWidget->On();
 	interactor->SetInteractorStyle(style);
 	interactor->SetInteractorStyle(cameraStyle);
 	interactor->Initialize();

@@ -11,17 +11,20 @@
 #include<vtkPointData.h>
 #include<vtkCamera.h>
 #include<vtkFloatArray.h>
+#include<vtkScalarBarActor.h>
+#include<vtkScalarBarWidget.h>
 #include<vtkImageReader.h>
 #include<vtkImageShiftScale.h>
 #include<vtkNew.h>
 #include<fstream>
 #include<string>
 #include<vtkSmartPointer.h>
-#include<getopt.h>
+#include"getopt.h"
 #include<cstring>
 #include<cstdlib>
 #include<iostream>
 #include<vtkAutoInit.h>
+#include"colormap.hpp"
 VTK_MODULE_INIT(vtkRenderingOpenGL2);
 VTK_MODULE_INIT(vtkRenderingVolumeOpenGL2);
 VTK_MODULE_INIT(vtkRenderingFreeType);
@@ -30,16 +33,30 @@ VTK_MODULE_INIT(vtkInteractionStyle);
 #define VTK_USE(type,name) vtkSmartPointer<type> name=vtkSmartPointer<type>::New();
 int main(int argc,char**argv)
 {
-	const char* help="RawDataReader \n"
+	const char* help="XVolume \n"
 	"-n,--name:file name.\n"
 	"-x,--xdim:raw data xdim.\n"
 	"-y,--ydim:raw data ydim.\n"
 	"-z,--zdim:raw data zdim.\n"
+	"-c,--colormap: 0=Gray\n"
+	"				1=Jet\n"
+	"				2=Cool\n"
+	"				3=Hot\n"
+	"				4=Parula\n"
+	"				5=Hsv\n"
+	"				6=Spring\n"
+	"				7=Summer\n"
+	"				8=Autumn\n"
+	"				9=Winter\n"
+	"				10=Bone\n"
+	"				11=Copper\n"
+	"				12=Pink\n"
 	"-h,--help:help user!";
-	const char* short_opt="-n:x:y:z:h";
+	const char* short_opt="-n:x:y:z:c::h";
 	const option long_opt[]={
 		{"name",1,NULL,'n'},{"xdim",1,NULL,'x'},
 		{"ydim",1,NULL,'y'},{"zdim",1,NULL,'z'},
+		{"colormap",2,NULL,'c'},
 		{"help",0,NULL,'h'},{0,0,0,0}
 	};
 	optind=1;
@@ -47,6 +64,7 @@ int main(int argc,char**argv)
 	int xdim=0;
 	int ydim=0;
 	int zdim=0;
+	int colormap=0;
 	std::string fileName;
 	while((result=getopt_long(argc,argv,short_opt,long_opt,&optind))!=-1)
 	{
@@ -61,6 +79,9 @@ int main(int argc,char**argv)
 			case 'z':
 				sscanf(optarg,"%d",&zdim);
 				break;
+			case 'c':
+				sscanf(optarg,"%d",&colormap);
+				break;
 			case 'n':
 				fileName=optarg;
 				break;
@@ -69,7 +90,7 @@ int main(int argc,char**argv)
 				exit(EXIT_FAILURE);
 		}
 	}
-
+	colormap%=COLORMAP_NUM;
 	std::cout << "xdim : " << xdim << std::endl
 		<< "ydim : " << ydim << std::endl
 		<< "zdim : " << zdim << std::endl
@@ -104,10 +125,10 @@ int main(int argc,char**argv)
 	//1D transfer functions
 	//vtkNew<vtkColorTransferFunction> colorTF;
 	VTK_USE(vtkColorTransferFunction,colorTF)
-	colorTF->AddRGBPoint(0,0.0,1.0,0.0);
-	colorTF->AddRGBPoint(127,1.0,0.0,1.0);
-	colorTF->AddRGBPoint(255,0.9,0.1,0.3);
+	V3D::vtkSetColorTransferFunction(colorTF,colormap);
 
+	
+	
 	//vtkNew<vtkPiecewiseFunction> scalarTF;
 	VTK_USE(vtkPiecewiseFunction,scalarTF) 
 	scalarTF->AddPoint(0,0.0);
@@ -122,6 +143,14 @@ int main(int argc,char**argv)
 	volumeProperty->SetGradientOpacity(gradientTF);
 	volumeProperty->SetColor(colorTF);
 
+	VTK_USE(vtkLookupTable, colorTable)
+	V3D::vtkSetColorTable(colorTable,colormap);
+	colorTable->SetRange(range[0],range[1]);
+	VTK_USE(vtkScalarBarActor, scalarBar)
+	scalarBar->SetOrientationToHorizontal();
+	scalarBar->SetLookupTable(colorTable);
+
+	
 	//set up rendering context
 	//vtkNew<vtkRenderWindow> renderWindow;
 	VTK_USE(vtkRenderWindow,renderWindow)
@@ -153,7 +182,10 @@ int main(int argc,char**argv)
 	interactor->SetRenderWindow(renderWindow);
 	VTK_USE(vtkInteractorStyleTrackballCamera,style)
 	interactor->SetInteractorStyle(style);
-
+	VTK_USE(vtkScalarBarWidget, barWidget)
+	barWidget->SetInteractor(interactor);
+	barWidget->SetScalarBarActor(scalarBar);
+	barWidget->On();
 	renderWindow->Render();
 
 	interactor->Start();

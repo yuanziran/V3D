@@ -1,0 +1,5 @@
+set(target_name XUnstructGrid)
+file(GLOB SourceList *.cpp)
+add_executable(${target_name} ${SourceList})
+target_include_directories(${target_name} PRIVATE ${VTK_INCLUDE_PATH})
+target_link_libraries(${target_name} PRIVATE ${VTK_LIBRARIES})

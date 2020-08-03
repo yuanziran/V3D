@@ -1,0 +1,7 @@
+file(GLOB SourceList *.cpp)
+foreach(file_name ${SourceList})
+	STRING(REGEX REPLACE ".+/(.+)\\..*" "\\1" target_name ${file_name})
+    add_executable(${target_name} ${file_name})
+    target_include_directories(${target_name} PRIVATE ${VTK_INCLUDE_PATH})
+    target_link_libraries(${target_name} PRIVATE ${VTK_LIBRARIES} tool)
+endforeach()
